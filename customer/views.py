@@ -131,8 +131,12 @@ def reset_password(request, user_id, token):
                data = json.loads(request.body)
                new_password = data.get('new_password')
                user.set_password(new_password)
-               user.save()
-               return JsonResponse({'message': "Password reset successfully."})
+               isSaved=user.save()
+               if isSaved:   
+                return JsonResponse({'message': "Password reset successfully.", "new_password": new_password})
+               else:
+                return JsonResponse({'message': "Password reset failed."})
+                   
        return JsonResponse({'message': "Invalid password reset link."})
 
 
