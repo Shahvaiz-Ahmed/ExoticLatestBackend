@@ -47,7 +47,7 @@ class SalesPrice(models.Model):
     SystemModifiedAt = models.CharField(max_length=200,blank=True, null=True)
 
     def __str__(self):
-        return f"Product {self.ItemNo}"
+        return f"Product {self.ItemNo} type {self.salestype} code {self.Salecode} "
 
 
 class LastTimeUpdation(models.Model):

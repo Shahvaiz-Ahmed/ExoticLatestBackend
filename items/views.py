@@ -244,6 +244,7 @@ class GetProducts(viewsets.ModelViewSet):
                     Brand = list(filter(None, Product.objects.filter(Q(ItemSubCategoryCode=f.split('=')[1].replace('%20', ' '))).order_by().values_list('Brand', flat=True).distinct()))
 
         # create a new dictionary for the response data
+        print("data respondede",response.data)
         data = {
             'results': response.data,
             'distinct_ItemCategoryCode': ItemCategoryCode,
@@ -251,7 +252,7 @@ class GetProducts(viewsets.ModelViewSet):
             'distinct_Brand': Brand,
         }
         # create a new Response object with the new data
-        return Response(data)
+        return Response({"data":data,"msg":response.data})
 
     # def get(self, request, *args, **kwargs):
     #     products = self.get_queryset()
@@ -286,27 +287,122 @@ class GetCategory(viewsets.ViewSet):
         brands = Product.objects.values_list('Brand', flat=True).distinct()
         return JsonResponse({'brands': list(brands)})
         
+# def getPrice(self, ItemNo, group, qnty):
+#     Price = 0
+#     print(f"{ItemNo}, {group} , {qnty}")
+#     try:
+#         items = SalesPrice.objects.filter(ItemNo=ItemNo)
+#         print(f"found itemss ", items)
+#         for item in items:
+#             print(item.salestype)
+#             if 'Campaign' in item.salestype and item.EndDate >= datetime.date.today():
+#                 filteredPrice = SalesPrice.objects.filter(ItemNo=ItemNo, salestype='Campaign').first()
+#                 print(f"filtered price products",filteredPrice)
+#                 if filteredPrice is not None:
+#                     Price = filteredPrice.UnitPrice
+#                     return JsonResponse({'price': Price})
+#             else:
+#                 filteredPrice = SalesPrice.objects.filter(ItemNo=ItemNo, Salecode=group, MinimumQuantity__lte=qnty).order_by('MinimumQuantity').last()
+#                 if filteredPrice:
+#                     Price = filteredPrice.UnitPrice
+#                 else:
+#                     return JsonResponse({'error': 'Regular price not found!'})
+#     except Exception as e:
+#         return JsonResponse({'error': 'Product Not Found! - ' + str(e)})
+    
+#     return JsonResponse({'price': Price})
+
+
 def getPrice(self, ItemNo, group, qnty):
     Price = 0
+    print(f"{ItemNo}, {group}, {qnty}")
+    
     try:
+        # Fetch all items with the given ItemNo
         items = SalesPrice.objects.filter(ItemNo=ItemNo)
+        print(f"Found items: {items}")
+        
+        # Check if any item exists, else return error
+        if not items:
+            return JsonResponse({'error': 'Product Not Found!'})
+
         for item in items:
+            print(item.salestype)
+            # Check if the item is part of a campaign and if the campaign is still valid
             if 'Campaign' in item.salestype and item.EndDate >= datetime.date.today():
+                # If found a campaign, handle it separately
                 filteredPrice = SalesPrice.objects.filter(ItemNo=ItemNo, salestype='Campaign').first()
+                print(f"Filtered campaign price: {filteredPrice}")
+                
                 if filteredPrice:
                     Price = filteredPrice.UnitPrice
+                    return JsonResponse({'price': Price})
                 else:
                     return JsonResponse({'error': 'Campaign price not found!'})
-            else:
-                filteredPrice = SalesPrice.objects.filter(ItemNo=ItemNo, Salecode=group, MinimumQuantity__lte=qnty).order_by('MinimumQuantity').last()
-                if filteredPrice:
-                    Price = filteredPrice.UnitPrice
-                else:
-                    return JsonResponse({'error': 'Regular price not found!'})
+        
+        # If no campaign was found, proceed to the regular price logic
+        # Filter based on Salecode (group) and MinimumQuantity
+        filteredPrice = SalesPrice.objects.filter(ItemNo=ItemNo, Salecode=group, MinimumQuantity__lte=qnty).order_by('MinimumQuantity').last()
+        
+        if filteredPrice:
+            Price = filteredPrice.UnitPrice
+            return JsonResponse({'price': Price})
+        else:
+            return JsonResponse({'error': 'Regular price not found!'})
+
     except Exception as e:
         return JsonResponse({'error': 'Product Not Found! - ' + str(e)})
     
-    return JsonResponse({'price': filteredPrice.UnitPrice})
+    # Return the price (although this should have already been returned from within the loop or after regular price logic)
+    return JsonResponse({'price': Price})
+
+
+
+
+
+
+
+
+# def getPrice(self, ItemNo, group, qnty):
+#     try:
+#         Price = 0
+#         print(f"{ItemNo}, {group}, {qnty}")
+        
+        
+#         items = SalesPrice.objects.filter(ItemNo=ItemNo)
+#         if not items:
+#             return JsonResponse({'error': 'Product Not Found!'})
+
+#         print(f"Found items: {len(items)}")
+        
+#         for item in items:
+#             print(f"sales type ", item)
+#             if 'Campaign' in item.salestype and item.EndDate >= datetime.date.today():
+#                 filteredPrice = SalesPrice.objects.filter(ItemNo=ItemNo, salestype='Campaign').first()
+#                 # print(f"Campaign filtered price: {filteredPrice}")
+                
+#                 if filteredPrice:
+#                     Price = filteredPrice.UnitPrice
+#                     return JsonResponse({'price': Price})
+#                 else:
+#                     return JsonResponse({'error': 'Campaign price not found!'})
+#             else:
+#                 filteredPrice = SalesPrice.objects.filter(
+#                     ItemNo=ItemNo, 
+#                     Salecode=group, 
+#                     MinimumQuantity__lte=qnty
+#                 ).order_by('-MinimumQuantity').first()  
+#                 print(filteredPrice)
+#                 if filteredPrice:
+#                     Price = filteredPrice.UnitPrice
+#                     return JsonResponse({'price': Price})
+#                 else:
+#                     return JsonResponse({'error': 'Regular price not found!'})
+    
+#     except Exception as e:
+#         return JsonResponse({'error': 'Product Not Found! - ' + str(e)})
+   
+#     return JsonResponse({'error': 'Price not found!'})
 
 def updateItem(self, itemNo):
     try:
@@ -316,6 +412,7 @@ def updateItem(self, itemNo):
         print(response)
         if response.status_code == 200:
             data = response.json()
+            
             for item in data['value']:
                 print(item)
                 product, created = Product.objects.update_or_create(
